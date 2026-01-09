@@ -110,7 +110,8 @@ export class Chat extends Base {
                 { user_id: userId },
                 {
                     id: true,
-                    chat_id: true
+                    chat_id: true,
+                    title: true
                 },
                 null,
                 { updated_at: 'desc' }

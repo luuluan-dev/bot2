@@ -32,6 +32,7 @@ interface CommandExecuteParams {
   client: Client;
   model: GenerativeModel;
   chatM: Chat;
+  createModel: (model: string) => GenerativeModel;
 }
 
 const chatM = new Chat();
@@ -92,6 +93,10 @@ class AIService {
   getModel(): GenerativeModel {
     return this.model;
   }
+  
+  createModel(model: string): GenerativeModel {
+    return this.genAI.getGenerativeModel({ model: model });
+  }
 }
 
 class CommandService {
@@ -127,7 +132,8 @@ class CommandService {
     logModAction: (action: string) => void,
     sendEmbedMessage: (channel: TextChannel, author: any, content: string, color: ColorResolvable) => Promise<void>,
     client: Client,
-    model: GenerativeModel
+    model: GenerativeModel,
+    aiService: AIService
   ): Promise<void> {
     const command = this.commands.get(commandName);
     if (!command) return;
@@ -140,7 +146,8 @@ class CommandService {
       sendEmbedMessage,
       client,
       model,
-      chatM
+      chatM,
+      createModel: (model: string) => aiService.createModel(model)
     } as CommandExecuteParams);
   }
 }
@@ -230,10 +237,10 @@ class DiscordBotService {
   private client: Client;
   private configService: ConfigService;
   private loggerService: LoggerService;
-  private aiService!: AIService;
   private commandService: CommandService;
   private moderationService: ModerationService;
   private scheduleService: ScheduleService;
+  public aiService!: AIService;
 
   constructor(config?: Config) {
     this.client = new Client({
@@ -255,7 +262,7 @@ class DiscordBotService {
 
   async initialize(): Promise<void> {
     const settingM = new Setting();
-    const modelAI = await settingM.getSetting(config.modelAI) || process.env.MODEL_AI || 'gemini-2.5-flash';
+    const modelAI = await settingM.getSetting(config.modelAI) || process.env.MODEL_AI || 'gemini-2.0-flash-lite-preview-02-05';
     this.aiService = new AIService(process.env.AI_API_KEY || '', modelAI);
     await this.loadCommands();
     this.setupEventListeners();
@@ -358,7 +365,8 @@ class DiscordBotService {
         this.moderationService.logModAction,
         this.moderationService.sendEmbedMessage,
         this.client,
-        this.aiService.getModel()
+        this.aiService.getModel(),
+        this.aiService
       );
     } catch (error) {
       this.loggerService.error('Có lỗi xảy ra khi thực hiện lệnh.', error);

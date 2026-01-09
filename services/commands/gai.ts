@@ -4,12 +4,24 @@ import '../../utils/logger.js';
 import { ExecuteParams, Command } from './types.js';
 import { GenerativeModel } from '@google/generative-ai';
 
+const FALLBACK_MODELS = [
+    'gemini-2.0-flash-lite-preview',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash-lite-001',
+    'gemini-flash-lite-latest',
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-001',
+    'gemini-2.0-flash-exp',
+    'gemini-flash-latest',
+    'gemini-pro-latest'
+];
+
 interface GlobalChatCommand extends Command {
     showGlobalChatList(message: Message): Promise<void>;
     startNewGlobalChat(message: Message): Promise<void>;
     continueGlobalChat(message: Message, chatId: string): Promise<void>;
     deleteGlobalChatHistory(message: Message, chatId: string | null): Promise<void>;
-    processGlobalChatMessage(message: Message, args: string[], model: GenerativeModel, sendEmbedMessage: Function): Promise<void>;
+    processGlobalChatMessage(message: Message, args: string[], model: GenerativeModel, sendEmbedMessage: Function, createModel: (model: string) => GenerativeModel): Promise<void>;
     summarizeAndUpdateGlobalChatTitle(model: any): Promise<void>;
 }
 
@@ -17,7 +29,7 @@ export default {
     name: 'gai',
     description: 'Trò chuyện AI trong chat toàn cục với các cuộc trò chuyện riêng biệt',
 
-    async execute({ message, args, config, logModAction, sendEmbedMessage, client, model, gchatM }: ExecuteParams): Promise<void> {
+    async execute({ message, args, config, logModAction, sendEmbedMessage, client, model, gchatM, createModel }: ExecuteParams): Promise<void> {
         const subCommand: string | null = args[0] ? args[0].toLowerCase() : null;
 
         switch (subCommand) {
@@ -34,7 +46,7 @@ export default {
                 return await this.deleteGlobalChatHistory(message, args[1]);
 
             default:
-                return await this.processGlobalChatMessage(message, args, model, sendEmbedMessage);
+                return await this.processGlobalChatMessage(message, args, model, sendEmbedMessage, createModel);
         }
     },
 
@@ -178,7 +190,7 @@ export default {
         }
     },
 
-    async processGlobalChatMessage(message: Message, args: string[], model: GenerativeModel, sendEmbedMessage: Function): Promise<void> {
+    async processGlobalChatMessage(message: Message, args: string[], model: GenerativeModel, sendEmbedMessage: Function, createModel: (model: string) => GenerativeModel): Promise<void> {
         if (!args.length) {
             message.reply('Vui lòng nhập nội dung để trò chuyện với AI. 💬');
             return;
@@ -191,7 +203,7 @@ export default {
         try {
             const globalChatM = new GlobalChat();
             if ('send' in message.channel) {
-                processingMsg = await message.channel.send('🤔 Đang xử lý 1...');
+                processingMsg = await message.channel.send('🤔 Chờ bố mài 1 tý ...');
             }
             const currentChat = await globalChatM.getCurrentGlobalChat();
             let historyRows = await globalChatM.getGlobalChatMessages(currentChat.id, 5);
@@ -199,61 +211,71 @@ export default {
                 role: row.role,
                 parts: [{ text: row.content }]
             }));
-            
-            if (conversation.length === 0) {
+
+            const models = [model, ...FALLBACK_MODELS.map(m => createModel(m))];
+            let content = '';
+            let usedModel = model;
+            let success = false;
+
+            for (let i = 0; i < models.length; i++) {
+                const currentModel = models[i];
                 try {
-                    const result = await model.generateContent(prompt);
-                    const content = result.response.text();
-                    await globalChatM.addGlobalChatMessage(userId, 'user', prompt, userName);
-                    await globalChatM.addGlobalChatMessage(userId, 'model', content, userName);
-                    await this.summarizeAndUpdateGlobalChatTitle(model);
-                    await processingMsg?.delete();
-                    await sendEmbedMessage(message.channel, message.author, content);
-                } catch (error: any) {
-                    console.log(`Lỗi khi gọi generateContent: ${error.message}`);
-                    await processingMsg?.delete();
-                    message.reply('Có lỗi xảy ra khi gọi AI. Vui lòng thử lại sau.');
-                }
-                return;
-            }
-            
-            try {
-                const chat = model.startChat({
-                    history: conversation,
-                    generationConfig: {
-                        maxOutputTokens: 1000,
+                    if (conversation.length === 0) {
+                        const result = await currentModel.generateContent(prompt);
+                        content = result.response.text();
+                    } else {
+                        try {
+                            const chat = currentModel.startChat({
+                                history: conversation,
+                                generationConfig: { maxOutputTokens: 1000 }
+                            });
+                            const result = await chat.sendMessage(prompt);
+                            content = result.response.text();
+                        } catch (chatError: any) {
+                            if (chatError.message?.includes('429') || chatError.status === 429) {
+                                throw chatError;
+                            }
+                            console.error(`⚠️ Lỗi startChat (non-quota): ${chatError.message}. Đang thử fallback sang generateContent (không history)...`);
+                            const result = await currentModel.generateContent(prompt);
+                            content = result.response.text();
+                        }
                     }
-                });
-                
-                const result = await chat.sendMessage(prompt);
-                const content = result.response.text();
-                
+                    usedModel = currentModel;
+                    success = true;
+                    break;
+                } catch (error: any) {
+                    const isQuota = error.message?.includes('429') || error.status === 429;
+                    if (isQuota && i < models.length - 1) {
+                        console.log(`⚠️ Model limit reached, switching to backup model... (${i + 1}/${models.length})`);
+                        continue;
+                    }
+                    if (i === models.length - 1) {
+                         // Last attempt failed
+                         if (error.message?.includes('429')) {
+                             message.reply('❌ Tất cả các model đều đang bận hoặc hết hạn mức. Vui lòng thử lại sau.');
+                             await processingMsg?.delete();
+                             return;
+                         }
+                        // Handle other errors normally or try new chat logic
+                         console.error(`Lỗi khi gọi AI: ${error.message}`);
+                         if (!isQuota) {
+                             await processingMsg?.delete();
+                             message.reply('❌ Có lỗi xảy ra khi gọi AI.');
+                             return;
+                         }
+                    }
+                }
+            }
+
+            if (success) {
                 await globalChatM.addGlobalChatMessage(userId, 'user', prompt, userName);
                 await globalChatM.addGlobalChatMessage(userId, 'model', content, userName);
-                await this.summarizeAndUpdateGlobalChatTitle(model);
+                // Chạy ngầm việc tóm tắt, không await
+                this.summarizeAndUpdateGlobalChatTitle(usedModel).catch(e => console.error("Lỗi tóm tắt ngầm:", e));
                 await processingMsg?.delete();
                 await sendEmbedMessage(message.channel, message.author, content);
-                return;
-            } catch (error: any) {
-                console.error(`Lỗi khi gọi startChat: ${error.message}`);
-                await processingMsg?.delete();
-                message.reply('Có lỗi xảy ra khi gọi AI. Đang thử lại với cuộc trò chuyện mới...');
-                
-                try {
-                    await globalChatM.createNewGlobalChat(userId);
-                    const result = await model.generateContent(prompt);
-                    const content = result.response.text();
-                    
-                    await globalChatM.addGlobalChatMessage(userId, 'user', prompt, userName);
-                    await globalChatM.addGlobalChatMessage(userId, 'model', content, userName);
-                    await this.summarizeAndUpdateGlobalChatTitle(model);
-                    await sendEmbedMessage(message.channel, message.author, content);
-                    return;
-                } catch (fallbackError: any) {
-                    console.log(`Lỗi khi thử lại với generateContent: ${fallbackError.message}`);
-                    message.reply('Có lỗi xảy ra khi gọi AI. Vui lòng thử lại sau.');
-                }
             }
+
         } catch (error: any) {
             console.log(`❌ Lỗi trong chat toàn cục: ${error.message}`);
             message.reply('❌ Có lỗi xảy ra khi gọi AI. Vui lòng thử lại sau.');
@@ -263,6 +285,11 @@ export default {
         try {
             const globalChatM = new GlobalChat();
             const currentChat = await globalChatM.getCurrentGlobalChat();
+            
+            if (currentChat.title && !currentChat.title.startsWith(`[${currentChat.chat_id}]`)) {
+                // If title already exists and is not just the ID, skip
+                return;
+            }
             
             // Lấy 5 tin nhắn gần đây
             const messages = await globalChatM.getGlobalChatMessages(currentChat.id, 5);
@@ -279,8 +306,11 @@ export default {
             // Prompt để tóm tắt
             const prompt = `Dựa vào đoạn hội thoại sau, hãy tạo một tiêu đề ngắn gọn (dưới 50 ký tự) cho cuộc trò chuyện này:\n\n${context}\n\nTiêu đề:`;
 
-            // Gọi AI để tóm tắt
-            const result = await model.generateContent(prompt);
+            // Gọi AI để tóm tắt với giới hạn token thấp
+            const result = await model.generateContent({
+                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                generationConfig: { maxOutputTokens: 100 }
+            });
             let title = result.response.text().trim();
 
             // Đảm bảo tiêu đề không quá dài

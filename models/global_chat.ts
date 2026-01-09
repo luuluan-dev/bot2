@@ -23,6 +23,7 @@ export interface GlobalChatResult {
 interface CurrentChat {
     id: number;
     chat_id: string;
+    title?: string;
 }
 
 export class GlobalChat extends Base {
@@ -97,7 +98,8 @@ export class GlobalChat extends Base {
                 {},
                 {
                     id: true,
-                    chat_id: true
+                    chat_id: true,
+                    title: true
                 },
                 null,
                 { updated_at: 'desc' }

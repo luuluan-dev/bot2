@@ -13,6 +13,7 @@ export interface ExecuteParams {
     model: GenerativeModel;
     chatM: Chat;
     gchatM: GlobalChat;
+    createModel: (model: string) => GenerativeModel;
 }
 export interface ChatMessage {
     role: string;

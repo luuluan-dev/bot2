@@ -4,6 +4,18 @@ import { Chat as ChatModel } from '../../models/chat.js';
 import '../../utils/logger.js';
 
 import { ChatHistory, ChatMessage, ExecuteParams, Command } from './types.js';
+
+const FALLBACK_MODELS = [
+    'gemini-2.0-flash-lite-preview',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash-lite-001',
+    'gemini-flash-lite-latest',
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-001',
+    'gemini-2.0-flash-exp',
+    'gemini-flash-latest',
+    'gemini-pro-latest'
+];
 interface AiCommand extends Command {
     summarizeAndUpdateChatTitle: (userId: string, model: GenerativeModel) => Promise<void>;
     generateChatTitle: (userId: string, model: GenerativeModel) => Promise<string>;
@@ -13,7 +25,7 @@ export default {
     name: 'ai',
     description: 'Talk to the AI with persistent conversation history using the current chat. 🤖',
     
-    async execute({ message, args, config, logModAction, sendEmbedMessage, client, model, chatM }: ExecuteParams): Promise<void> {
+    async execute({ message, args, config, logModAction, sendEmbedMessage, client, model, chatM, createModel }: ExecuteParams): Promise<void> {
         if (!args.length) {
             message.reply('⚠️ Bạn cần nhập nội dung để gọi AI.');
             return;
@@ -42,70 +54,80 @@ export default {
             
             console.log(`🗣️ Lịch sử cuộc trò chuyện của ${userId}: ${JSON.stringify(conversation)}`);
             
-            if (conversation.length === 0) {
+            const models = [model, ...FALLBACK_MODELS.map(m => createModel(m))];
+            let success = false;
+            let usedModel = model;
+
+            for (let i = 0; i < models.length; i++) {
+                const currentModel = models[i];
                 try {
-                    const result = await model.generateContent(prompt);
-                    const content: string = result.response.text();
+                    if (conversation.length === 0) {
+                        const result = await currentModel.generateContent(prompt);
+                        const content = result.response.text();
+                        await chatM.addChatMessage(userId, 'user', prompt);
+                        await chatM.addChatMessage(userId, 'model', content);
+                        this.summarizeAndUpdateChatTitle(userId, currentModel).catch(e => console.error("Lỗi tóm tắt ngầm:", e));
+                        await processingMsg?.delete();
+                        await sendEmbedMessage(message.channel, message.author, content);
+                        success = true;
+                        usedModel = currentModel;
+                        break;
+                    } 
                     
-                    await chatM.addChatMessage(userId, 'user', prompt);
-                    await chatM.addChatMessage(userId, 'model', content);
-                    
-                    await this.summarizeAndUpdateChatTitle(userId, model);
-                    
-                    await processingMsg?.delete();
-                    
-                    await sendEmbedMessage(message.channel, message.author, content);
-                                        
-                } catch (error: any) {
-                    console.error(`❌ Lỗi khi gọi generateContent: ${error.message}`);
-                    await processingMsg?.delete();
-                    message.reply('❌ Có lỗi xảy ra khi gọi AI. Vui lòng thử lại sau.');
-                }
-                return;
-            }
-            
-            try {
-                const chat = model.startChat({
-                    history: conversation,
-                    generationConfig: {
-                        maxOutputTokens: 1000,
+                    try {
+                        const chat = currentModel.startChat({
+                            history: conversation,
+                            generationConfig: { maxOutputTokens: 1000 }
+                        });
+                        const result = await chat.sendMessage(prompt);
+                        const content = result.response.text();
+                        await chatM.addChatMessage(userId, 'user', prompt);
+                        await chatM.addChatMessage(userId, 'model', content);
+                        this.summarizeAndUpdateChatTitle(userId, currentModel).catch(e => console.error("Lỗi tóm tắt ngầm:", e));
+                        await processingMsg?.delete();
+                        await sendEmbedMessage(message.channel, message.author, content);
+                        success = true;
+                        usedModel = currentModel;
+                        break;
+                    } catch (chatError: any) {
+                         // Check if this inner error is quota
+                         if (chatError.message?.includes('429') || chatError.status === 429) {
+                             throw chatError; // Rethrow to outer fallback loop
+                         }
+                         
+                         // Not quota, try new chat fallback logic with CURRENT model
+                        console.error(`Lỗi khi gọi startChat: ${chatError.message}`);
+                        await processingMsg?.delete();
+                        message.reply('🔄 Đang thử lại với cuộc trò chuyện mới...');
+                        
+                        await chatM.createNewChat(userId);
+                        const result = await currentModel.generateContent(prompt); 
+                        const content = result.response.text();
+                        
+                        await chatM.addChatMessage(userId, 'user', prompt);
+                        await chatM.addChatMessage(userId, 'model', content);
+                        this.summarizeAndUpdateChatTitle(userId, currentModel).catch(e => console.error("Lỗi tóm tắt ngầm:", e));
+                        await sendEmbedMessage(message.channel, message.author, content);
+                        success = true; // Fallback succeeded
+                        usedModel = currentModel;
+                        break;
                     }
-                });
-                
-                const result = await chat.sendMessage(prompt);
-                const content: string = result.response.text();
-                
-                await chatM.addChatMessage(userId, 'user', prompt);
-                await chatM.addChatMessage(userId, 'model', content);
-                
-                await this.summarizeAndUpdateChatTitle(userId, model);
-                
-                await processingMsg?.delete();
-                
-                await sendEmbedMessage(message.channel, message.author, content);
-                                
-            } catch (error: any) {
-                console.error(`❌ Lỗi khi gọi startChat: ${error.message}`);
-                await processingMsg?.delete();
-                
-                message.reply('🔄 Đang thử lại với cuộc trò chuyện mới...');
-                
-                try {
-                    await chatM.createNewChat(userId);
-                    
-                    const result = await model.generateContent(prompt);
-                    const content: string = result.response.text();
-                    
-                   await chatM.addChatMessage(userId, 'user', prompt);
-                   await chatM.addChatMessage(userId, 'model', content);
-                    
-                    await this.summarizeAndUpdateChatTitle(userId, model);
-                    
-                    await sendEmbedMessage(message.channel, message.author, content);
-                    
-                } catch (fallbackError: any) {
-                    console.error(`❌ Lỗi khi thử lại với generateContent: ${fallbackError.message}`);
-                    message.reply('❌ Có lỗi xảy ra khi gọi AI. Vui lòng thử lại sau.');
+                } catch (error: any) {
+                     const isQuota = error.message?.includes('429') || error.status === 429;
+                     if (isQuota && i < models.length - 1) {
+                         console.log(`⚠️ Model limit reached, switching to backup model... (${i + 1}/${models.length})`);
+                         continue;
+                     }
+                     
+                     if (i === models.length - 1) {
+                         console.error(`❌ Lỗi cuối cùng khi gọi AI: ${error.message}`);
+                         await processingMsg?.delete();
+                         if (isQuota) {
+                            message.reply('❌ Tất cả các model đều đang bận hoặc hết hạn mức. Vui lòng thử lại sau.');
+                         } else {
+                            message.reply('❌ Có lỗi xảy ra khi gọi AI.');
+                         }
+                     }
                 }
             }
         } catch (error: any) {
@@ -118,6 +140,11 @@ export default {
         try {
             const currentChat = await (new ChatModel()).getCurrentChat(userId);
     
+            if (currentChat.title && !currentChat.title.startsWith(`[${currentChat.chat_id}] Cuộc trò chuyện`)) {
+                // If title already exists and is not just the default, skip
+                return;
+            }
+
             const messages: ChatMessage[] = await (new ChatModel()).getChatMessages(currentChat.id, 5);
     
             if (messages.length === 0) {
@@ -130,7 +157,10 @@ export default {
     
             const prompt: string = `Dựa vào đoạn hội thoại sau, hãy tạo một tiêu đề ngắn gọn (dưới 50 ký tự) cho cuộc trò chuyện này:\n\n${context}\n\nTiêu đề:`;
     
-            const result = await model.generateContent(prompt);
+            const result = await model.generateContent({
+                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                generationConfig: { maxOutputTokens: 100 }
+            });
             let title: string = result.response.text().trim();
     
             if (title.length > 50) {
