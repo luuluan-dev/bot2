@@ -24,13 +24,32 @@ for (const file of commandFiles) {
 
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN || '');
 
+// Lấy CLIENT_ID từ token (phần đầu của token là bot ID)
+const token = process.env.DISCORD_TOKEN || '';
+const clientId = Buffer.from(token.split('.')[0], 'base64').toString('ascii');
+
+// Lấy GUILD_ID từ .env
+const guildId = process.env.GUILD_ID;
+
+if (!guildId) {
+  console.error('❌ Thiếu GUILD_ID trong file .env!');
+  console.log('💡 Hãy thêm GUILD_ID="your_guild_id" vào file .env');
+  process.exit(1);
+}
+
 try {
-  console.log('🔃 Đăng ký Slash Commands...');
+  console.log('🔃 Đăng ký Slash Commands cho guild...');
+  console.log(`📝 Tổng số commands: ${commands.length}`);
+  console.log(`🏠 Guild ID: ${guildId}`);
+  
+  // Đăng ký theo guild (xuất hiện ngay lập tức)
   await rest.put(
-    Routes.applicationGuildCommands(process.env.CLIENT_ID || '', process.env.GUILD_ID || ''),
+    Routes.applicationGuildCommands(clientId, guildId),
     { body: commands }
   );
-  console.log('✅ Đã đăng ký thành công!');
+  
+  console.log('✅ Đã đăng ký thành công tất cả slash commands!');
+  console.log(`📋 Commands đã đăng ký: ${commands.map((c: any) => c.name).join(', ')}`);
 } catch (error) {
   console.error('❌ Lỗi khi đăng ký:', error);
 }

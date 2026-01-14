@@ -18,6 +18,7 @@ import * as bookmarkAdd from './slashCommands/bookmark-add.js';
 import * as bookmarkDelete from './slashCommands/bookmark-delete.js';
 import * as bookmarks from './slashCommands/bookmarks.js';
 import * as voteChoice from './slashCommands/votechoice.js';
+import * as randomChoice from './slashCommands/randomchoice.js';
 import { agenda } from '../utils/agenda.js';
 import { scheduleDailyJobs } from '../src/queues/agendaQueue.js';
 import { Setting } from '../models/setting.js';
@@ -42,7 +43,8 @@ const stashCommandMap = {
     add: bookmarkAdd,
     delete: bookmarkDelete
   },
-  votechoice: voteChoice
+  votechoice: voteChoice,
+  randomchoice: randomChoice
 }
 
 class ConfigService {
@@ -310,6 +312,9 @@ class DiscordBotService {
           break;
         case 'votechoice':
           await stashCommandMap['votechoice'].execute(interaction);
+          break;
+        case 'randomchoice':
+          await stashCommandMap['randomchoice'].execute(interaction);
           break;
         default:
           break;
