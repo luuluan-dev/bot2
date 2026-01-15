@@ -46,7 +46,7 @@ export class DiscordController extends BaseController {
     }
 
     async getGuildMembers(req: Request, res: Response): Promise<void> {
-        const { guildId } = req.params;
+        const guildId = Array.isArray(req.params.guildId) ? req.params.guildId[0] : req.params.guildId;
         try {
             const guild = this._discord.guilds.cache.get(guildId);
             if (!guild) {
@@ -80,7 +80,8 @@ export class DiscordController extends BaseController {
     }
 
     async volt(req: Request, res: Response): Promise<void> {
-        const { guildId, memberId } = req.params;
+        const guildId = Array.isArray(req.params.guildId) ? req.params.guildId[0] : req.params.guildId;
+        const memberId = Array.isArray(req.params.memberId) ? req.params.memberId[0] : req.params.memberId;
         const settingM = new Setting();
         const channelId = await settingM.getSetting(config.channeSpamSettingKey) || config.aiChannel;
         if (!channelId) {
