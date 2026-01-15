@@ -38,8 +38,8 @@ export default {
         }
         
 
-        const warnings: Collection<string, Warning[]> = (message.client as any).warnings;
-        if (warnings.has(user.id)) {
+        const warnings: Collection<string, Warning[]> | undefined = (message.client as any).warnings;
+        if (warnings && warnings.has(user.id)) {
             const userWarnings: Warning[] = warnings.get(user.id) || [];
             infoText += `\n**🆘 Cảnh cáo:** ${userWarnings.length}`;
             userWarnings.forEach((warn: Warning, index: number) => {
