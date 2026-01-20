@@ -8,7 +8,10 @@ export default {
   description: 'lưu tin nhắn reply. 📚',
   async execute({ message, args }: ExecuteParams): Promise<void> {
     if (message.author.bot) return;
-    if (!message.reference) return;
+    if (!message.reference) {
+      await message.reply('⚠️ Vui lòng reply tin nhắn bạn muốn lưu và thử lại.');
+      return;
+    }
 
     try {
       const replied = await message.channel.messages.fetch(message.reference.messageId!);
@@ -31,7 +34,12 @@ export default {
         tags,
       };
 
-      await bookmarkM.save(saveData);
+      const result = await bookmarkM.save(saveData);
+
+      if (!result) {
+         await message.reply('❌ Không thể lưu. Có lỗi xảy ra khi ghi vào database.');
+         return;
+      }
 
       await message.reply(`✅ Đã lưu! ${tags.length ? `Tags: ${tags.join(', ')}` : ''}`);
     } catch (error: any) {

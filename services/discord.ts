@@ -374,7 +374,7 @@ class DiscordBotService {
   async onMessageReceived(message: Message): Promise<void> {
     if (message.author.bot || !message.content.startsWith(this.configService.getPrefix() || '')) return;
 
-    const args = message.content.slice(this.configService.getPrefix()?.length || 0).trim().split(/ +/);
+    const args = message.content.slice(this.configService.getPrefix()?.length || 0).trim().split(/\s+/);
     const commandName = args.shift()?.toLowerCase() || '';
 
     try {
