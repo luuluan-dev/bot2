@@ -18,7 +18,9 @@ import * as bookmarkAdd from './slashCommands/bookmark-add.js';
 import * as bookmarkDelete from './slashCommands/bookmark-delete.js';
 import * as bookmarks from './slashCommands/bookmarks.js';
 import * as voteChoice from './slashCommands/votechoice.js';
+import * as gVoteChoice from './slashCommands/gvotechoice.js';
 import * as randomChoice from './slashCommands/randomchoice.js';
+import * as gRandomChoice from './slashCommands/grandomchoice.js';
 import { agenda } from '../utils/agenda.js';
 import { scheduleDailyJobs } from '../src/queues/agendaQueue.js';
 import { Setting } from '../models/setting.js';
@@ -44,7 +46,9 @@ const stashCommandMap = {
     delete: bookmarkDelete
   },
   votechoice: voteChoice,
-  randomchoice: randomChoice
+  gvotechoice: gVoteChoice,
+  randomchoice: randomChoice,
+  grandomchoice: gRandomChoice
 }
 
 class ConfigService {
@@ -316,6 +320,12 @@ class DiscordBotService {
         case 'randomchoice':
           await stashCommandMap['randomchoice'].execute(interaction);
           break;
+        case 'gvotechoice':
+          await stashCommandMap['gvotechoice'].execute(interaction);
+          break;
+        case 'grandomchoice':
+          await stashCommandMap['grandomchoice'].execute(interaction);
+          break;
         default:
           break;
       }
@@ -341,6 +351,12 @@ class DiscordBotService {
       
         default:
           break;
+      }
+    });
+
+    this.client.on(Events.InteractionCreate, async (interaction) => {
+      if (interaction.isAutocomplete()) {
+        await this.handleAutocomplete(interaction);
       }
     });
   }
@@ -393,7 +409,7 @@ class DiscordBotService {
       interaction.reply({ content: '🚫 Không còn bookmark nào ở trang này.', ephemeral: true });
       return;
     }
-    const bookmarks = await fetchBookmarks(interaction.user.id, nextPage, tags);
+    const bookmarks = await fetchBookmarks(interaction.user.id, interaction.guildId!, nextPage, tags);
   
     if (bookmarks.length === 0) {
       interaction.reply({ content: '🚫 Không còn bookmark nào ở trang này.', ephemeral: true });
@@ -417,7 +433,7 @@ class DiscordBotService {
     const bM = new Bookmarks();
     await bM.delete(bookmarkId);
     const userId = interaction.user.id;
-    const bookmarks = await fetchBookmarks(userId, parseInt(page), null);
+    const bookmarks = await fetchBookmarks(userId, interaction.guildId!, parseInt(page), null);
   
     const replyData = bookmarks.length === 0
       ? {
@@ -449,7 +465,7 @@ class DiscordBotService {
     let bookmarks;
 
     if (selected.includes('__ALL__')) {
-      bookmarks = await fetchBookmarks(interaction.user.id, page, null);
+      bookmarks = await fetchBookmarks(interaction.user.id, interaction.guildId!, page, null);
     } else {
       bookmarks = await bM.findMany({
         where: {
@@ -475,7 +491,7 @@ class DiscordBotService {
     }
 
     const { embed, actionRows } = buildCombinedBookmarkEmbed(bookmarks);
-
+    
     const paginationRow = buildPaginationButtons(page, selected.includes('__ALL__') ? null : selected);
 
     await interaction.update({
@@ -484,6 +500,46 @@ class DiscordBotService {
       components: [...actionRows, paginationRow],
     });
   }
+
+  async handleAutocomplete(interaction: Interaction): Promise<void> {
+    if (!interaction.isAutocomplete()) return;
+
+    const focusedOption = interaction.options.getFocused(true);
+    if (focusedOption.name !== 'tag') return;
+
+    const commandName = interaction.commandName;
+    const isGlobal = ['gvotechoice', 'grandomchoice'].includes(commandName);
+    const userId = interaction.user.id;
+    const guildId = interaction.guildId;
+
+    if (!guildId) return;
+
+    const bM = new Bookmarks();
+    const where: any = { guildId };
+    
+    // Nếu là lệnh cá nhân thì filter theo user
+    if (!isGlobal) {
+      where.savedByUserId = userId;
+    }
+
+    // Lấy tags
+    const bookmarks = await bM.findMany({
+      where,
+      select: { tags: true },
+    });
+
+    const allTags = Array.from(new Set(bookmarks.flatMap((b: any) => b.tags || [])));
+    
+    const filtered = allTags
+      .filter((tag: string) => tag.toLowerCase().includes(focusedOption.value.toLowerCase()))
+      .slice(0, 25);
+
+    await interaction.respond(
+      filtered.map((choice: string) => ({ name: choice, value: choice }))
+    );
+  }
+
+
 }
 
 export default DiscordBotService;

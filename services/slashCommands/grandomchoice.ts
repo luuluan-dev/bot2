@@ -6,8 +6,8 @@ import {
 import { Bookmarks } from '../../models/bookmark.js';
 
 export const data = new SlashCommandBuilder()
-  .setName('randomchoice')
-  .setDescription('🎲 Random chọn một địa điểm từ bookmarks theo tag')
+  .setName('grandomchoice')
+  .setDescription('🎲 Random chọn địa điểm từ bookmarks của TẤT CẢ mọi người')
   .addStringOption(option =>
     option
       .setName('tag')
@@ -24,19 +24,21 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     
     const bM = new Bookmarks();
     
-    const bookmarks = await bM.findMany({
-      where: {
-        guildId: interaction.guildId!,
-        savedByUserId: interaction.user.id,
-        tags: {
-          has: tag,
-        },
+    // Global search: không lọc theo savedByUserId
+    const whereCondition: any = {
+      guildId: interaction.guildId!,
+      tags: {
+        has: tag,
       },
+    };
+
+    const bookmarks = await bM.findMany({
+      where: whereCondition,
       orderBy: { createdAt: 'desc' },
     });
 
     if (bookmarks.length === 0) {
-      return interaction.editReply(`📭 Không tìm thấy bookmark nào với tag \`${tag}\`.`);
+      return interaction.editReply(`📭 Không tìm thấy bookmark nào với tag \`${tag}\` từ bất kỳ ai.`);
     }
 
     // Random chọn một bookmark
@@ -48,7 +50,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     // Tạo embed để hiển thị kết quả
     const embed = new EmbedBuilder()
-      .setTitle(`🎲 Random Choice từ tag #${tag}`)
+      .setTitle(`🎲 Global Random Choice từ tag #${tag}`)
       .setColor(0xff6b6b)
       .setDescription(
         firstLink 
@@ -70,13 +72,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     });
 
   } catch (err) {
-    console.error('❌ Lỗi khi xử lý /randomchoice:', err);
+    console.error('❌ Lỗi khi xử lý /grandomchoice:', err);
     try {
       if (interaction.deferred || interaction.replied) {
         await interaction.editReply({ content: '❌ Có lỗi xảy ra khi random chọn.' });
       } else {
         await interaction.reply({ content: '❌ Có lỗi xảy ra khi random chọn.', ephemeral: true });
       }
-    } catch (ignored) { }
+    } catch (ignored) {}
   }
 }

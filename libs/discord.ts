@@ -2,7 +2,7 @@ import { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } from 'disc
 import { Bookmarks } from '../models/bookmark.js';
 const PAGE_SIZE = 4;
 
-export async function fetchBookmarks(userId: string, page = 1, tag?: string[] | null) {
+export async function fetchBookmarks(userId: string, guildId: string, page = 1, tag?: string[] | null) {
   const skip = (page - 1) * PAGE_SIZE;
   const bookmarkM = new Bookmarks();
   let isAll = false;
@@ -10,7 +10,8 @@ export async function fetchBookmarks(userId: string, page = 1, tag?: string[] | 
     isAll = true;
   }
   const whereCondition = {
-    // savedByUserId: userId,
+    savedByUserId: userId,
+    guildId: guildId,
     ...(!isAll ? { tags: { hasSome: tag } } : {}),
   };
 

@@ -10,8 +10,8 @@ import {
 import { Bookmarks } from '../../models/bookmark.js';
 
 export const data = new SlashCommandBuilder()
-  .setName('votechoice')
-  .setDescription('🥡 Vote chọn một địa điểm ăn uống từ bookmarks')
+  .setName('gvotechoice')
+  .setDescription('🥡 Vote chọn địa điểm ăn uống từ bookmarks của TẤT CẢ mọi người')
   .addStringOption(option =>
     option
       .setName('tag')
@@ -25,27 +25,28 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply();
 
     const tag = interaction.options.getString('tag') || 'eat';
-
     const bM = new Bookmarks();
 
-    const bookmarks = await bM.findMany({
-      where: {
-        guildId: interaction.guildId!,
-        savedByUserId: interaction.user.id,
-        tags: {
-          has: tag,
-        },
+    const whereCondition: any = {
+      guildId: interaction.guildId!,
+      tags: {
+        has: tag,
       },
+      // Không filter theo savedByUserId để lấy global
+    };
+
+    const bookmarks = await bM.findMany({
+      where: whereCondition,
       orderBy: { createdAt: 'desc' },
     });
 
     if (bookmarks.length === 0) {
-      return interaction.editReply(`📭 Không tìm thấy bookmark nào với tag \`${tag}\`.`);
+      return interaction.editReply(`📭 Không tìm thấy bookmark nào với tag \`${tag}\` từ bất kỳ ai.`);
     }
 
     const options = bookmarks.slice(0, 25);
     const embed = new EmbedBuilder()
-    .setTitle(`📋 Vote chọn từ tag #${tag}`)
+    .setTitle(`📋 Global Vote từ tag #${tag}`)
     .setColor(0x00bfff)
     .setDescription(
       options
@@ -63,7 +64,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       if (i % 5 === 0) rows.push(new ActionRowBuilder<ButtonBuilder>());
       rows[rows.length - 1].addComponents(
         new ButtonBuilder()
-          .setCustomId(`votechoice_${i}`)
+          .setCustomId(`gvotechoice_${i}`)
           .setLabel(`Vote ${i + 1}`)
           .setStyle(ButtonStyle.Primary)
       );
@@ -132,16 +133,16 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         // Random chọn 1 người chiến thắng trong số những người có vote cao nhất
         const winnerIndex = winners[Math.floor(Math.random() * winners.length)];
         const winner = options[winnerIndex];
-
+        
         const tieMsg = winners.length > 1 ? `\n(Random từ ${winners.length} lựa chọn có cùng ${maxVotes} vote)` : '';
 
         await interaction.followUp(
-          `🥇 **Kết quả vote**:${tieMsg}\n🏆 [Link](${winner.messageLink}) - ${winner.content || 'Không có mô tả'}\n🗳️ Số vote: ${maxVotes}`
+          `🥇 **Kết quả vote (Global)**:${tieMsg}\n🏆 [Link](${winner.messageLink}) - ${winner.content || 'Không có mô tả'}\n🗳️ Số vote: ${maxVotes}`
         );
       }
     });
   } catch (err) {
-    console.error('❌ Lỗi khi xử lý /votechoice:', err);
+    console.error('❌ Lỗi khi xử lý /gvotechoice:', err);
     try {
       if (interaction.deferred || interaction.replied) {
         await interaction.editReply({ content: '❌ Có lỗi xảy ra khi xử lý vote.' });
@@ -149,7 +150,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         await interaction.reply({ content: '❌ Có lỗi xảy ra khi xử lý vote.', ephemeral: true });
       }
     } catch (ignored) {
-      // Nếu không start được message báo lỗi thì bỏ qua
+      // Bỏ qua lỗi khi báo lỗi
     }
   }
 }

@@ -95,3 +95,23 @@ model bookmarks {
   createdAt         DateTime @default(now())
   @@map("bookmarks")
 }
+
+// ========== CHESS GAME ==========
+model chess_games {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  guildId         String   @map("guild_id")
+  channelId       String   @map("channel_id")
+  whitePlayerId   String   @map("white_player_id")
+  whitePlayerName String   @map("white_player_name")
+  blackPlayerId   String   @map("black_player_id")
+  blackPlayerName String   @map("black_player_name")
+  isAiGame        Boolean  @default(false) @map("is_ai_game")
+  board           String
+  currentTurn     String   @default("white") @map("current_turn")
+  moves           String[]
+  status          String   @default("pending")
+  winner          String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  @@map("chess_games")
+}
