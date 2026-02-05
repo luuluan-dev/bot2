@@ -17,10 +17,21 @@ function getTodayDate(): string {
 
 export default {
   name: "logs",
-  description: "Lấy file log theo ngày từ thư mục logs 📝",
+  description: "Lấy file log theo loại và ngày từ thư mục logs 📝\nCách dùng: !logs <app|error> [YYYY-MM-DD]",
   async execute({ message, args }: ExecuteParams): Promise<void> {
-    const inputDate = args[0];
-    const logType = args[1] === "error" ? "error" : "app";
+    const logType = args[0]?.toLowerCase();
+    const inputDate = args[1];
+
+    // 📌 Kiểm tra loại log
+    if (!logType || (logType !== "app" && logType !== "error")) {
+      await message.reply(
+        `❌ Vui lòng chọn loại log:\n` +
+        `📱 \`!logs app [ngày]\` - Lấy app logs\n` +
+        `🚨 \`!logs error [ngày]\` - Lấy error logs\n\n` +
+        `Ví dụ: \`!logs app 2026-02-05\` hoặc \`!logs error\` (hôm nay)`
+      );
+      return;
+    }
 
     let date: string;
 
@@ -28,7 +39,8 @@ export default {
     if (inputDate) {
       if (!isValidDateFormat(inputDate)) {
         await message.reply(
-          `❌ Định dạng ngày không đúng. Vui lòng dùng dạng \`YYYY-MM-DD\`.`,
+          `❌ Định dạng ngày không đúng. Vui lòng dùng dạng \`YYYY-MM-DD\`.\n` +
+          `Ví dụ: \`!logs ${logType} ${getTodayDate()}\``
         );
         return;
       }
@@ -44,14 +56,16 @@ export default {
       await fs.access(logFilePath);
 
       if ("send" in message.channel) {
+        const emoji = logType === "error" ? "🚨" : "📱";
         await message.channel.send({
-          content: `📝 Log **${logFileName}**:`,
+          content: `${emoji} **${logType.toUpperCase()} Log** - \`${logFileName}\`:`,
           files: [logFilePath],
         });
       }
     } catch (error) {
       await message.reply(
-        `❌ Không tìm thấy file log \`${logFileName}\` trong thư mục logs.`,
+        `❌ Không tìm thấy file log \`${logFileName}\` trong thư mục logs.\n` +
+        `💡 Tip: Dùng \`!logs ${logType}\` để xem log hôm nay.`
       );
     }
   },
