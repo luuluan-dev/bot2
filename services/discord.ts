@@ -21,6 +21,7 @@ import * as voteChoice from './slashCommands/votechoice.js';
 import * as gVoteChoice from './slashCommands/gvotechoice.js';
 import * as randomChoice from './slashCommands/randomchoice.js';
 import * as gRandomChoice from './slashCommands/grandomchoice.js';
+import * as bacao from './slashCommands/bacao.js';
 import { agenda } from '../utils/agenda.js';
 import { scheduleDailyJobs } from '../src/queues/agendaQueue.js';
 import { Setting } from '../models/setting.js';
@@ -48,7 +49,8 @@ const stashCommandMap = {
   votechoice: voteChoice,
   gvotechoice: gVoteChoice,
   randomchoice: randomChoice,
-  grandomchoice: gRandomChoice
+  grandomchoice: gRandomChoice,
+  bacao: bacao
 }
 
 class ConfigService {
@@ -326,6 +328,14 @@ class DiscordBotService {
         case 'grandomchoice':
           await stashCommandMap['grandomchoice'].execute(interaction);
           break;
+        case 'bacao':
+          try {
+            await stashCommandMap['bacao'].execute(interaction);
+          } catch (error: any) {
+            console.error('Lỗi bacao:', error.message || error);
+            // Ignore "Unknown interaction" errors
+          }
+          break;
         default:
           break;
       }
@@ -356,7 +366,17 @@ class DiscordBotService {
 
     this.client.on(Events.InteractionCreate, async (interaction) => {
       if (interaction.isAutocomplete()) {
-        await this.handleAutocomplete(interaction);
+      }
+    });
+
+    this.client.on(Events.InteractionCreate, async (interaction: Interaction) => {
+      if ((interaction.isButton() || interaction.isModalSubmit()) && interaction.customId.startsWith('bacao_')) {
+          try {
+            const { handleInteraction } = await import('./slashCommands/bacao.js');
+            await handleInteraction(interaction);
+          } catch (e) {
+            console.error('Lỗi handling bacao interaction:', e);
+          }
       }
     });
   }

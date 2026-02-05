@@ -115,3 +115,59 @@ model chess_games {
   updatedAt       DateTime @updatedAt @map("updated_at")
   @@map("chess_games")
 }
+
+// ========== GAME WALLET (Ví xu chung cho các game) ==========
+model game_wallets {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  odId        String   @unique @map("od_id") // odId-guildId
+  odName      String   @map("od_name") // discord username
+  odguildId   String   @map("od_guild_id")
+  coins       Int      @default(1000) // Xu ban đầu
+  totalWon    Int      @default(0) @map("total_won")
+  totalLost   Int      @default(0) @map("total_lost")
+  gamesPlayed Int      @default(0) @map("games_played")
+  gamesWon    Int      @default(0) @map("games_won")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  @@map("game_wallets")
+}
+
+// ========== BA CAO GAMES (Lịch sử ván đấu) ==========
+model bacao_games {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  guildId       String   @map("guild_id")
+  channelId     String   @map("channel_id")
+  hostId        String   @map("host_id")
+  hostName      String   @map("host_name")
+  betAmount     Int      @map("bet_amount")
+  players       Json     // Array of player data with hands
+  winnerId      String?  @map("winner_id")
+  winnerName    String?  @map("winner_name")
+  winnerHand    String?  @map("winner_hand") // e.g., "LIEN", "SAP", "9"
+  totalPot      Int      @map("total_pot")
+  status        String   @default("finished")
+  createdAt     DateTime @default(now()) @map("created_at")
+  @@map("bacao_games")
+}
+
+// ========== BA CAO LEADERBOARD ==========
+model bacao_stats {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  odId            String   @unique @map("od_id") // odId-guildId
+  odName          String   @map("od_name")
+  odguildId       String   @map("od_guild_id")
+  totalGames      Int      @default(0) @map("total_games")
+  totalWins       Int      @default(0) @map("total_wins")
+  totalLosses     Int      @default(0) @map("total_losses")
+  totalCoinsWon   Int      @default(0) @map("total_coins_won")
+  totalCoinsLost  Int      @default(0) @map("total_coins_lost")
+  lienCount       Int      @default(0) @map("lien_count")
+  sapCount        Int      @default(0) @map("sap_count")
+  bachThuCount    Int      @default(0) @map("bach_thu_count")
+  highestWin      Int      @default(0) @map("highest_win")
+  currentStreak   Int      @default(0) @map("current_streak")
+  bestStreak      Int      @default(0) @map("best_streak")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  @@map("bacao_stats")
+}
