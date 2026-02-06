@@ -22,6 +22,7 @@ import * as gVoteChoice from './slashCommands/gvotechoice.js';
 import * as randomChoice from './slashCommands/randomchoice.js';
 import * as gRandomChoice from './slashCommands/grandomchoice.js';
 import * as bacao from './slashCommands/bacao.js';
+import * as xidach from './slashCommands/xidach.js';
 import { agenda } from '../utils/agenda.js';
 import { scheduleDailyJobs } from '../src/queues/agendaQueue.js';
 import { Setting } from '../models/setting.js';
@@ -50,7 +51,8 @@ const stashCommandMap = {
   gvotechoice: gVoteChoice,
   randomchoice: randomChoice,
   grandomchoice: gRandomChoice,
-  bacao: bacao
+  bacao: bacao,
+  xidach: xidach
 }
 
 class ConfigService {
@@ -336,6 +338,13 @@ class DiscordBotService {
             // Ignore "Unknown interaction" errors
           }
           break;
+        case 'xidach':
+          try {
+            await stashCommandMap['xidach'].execute(interaction);
+          } catch (error: any) {
+            console.error('Lỗi xidach:', error.message || error);
+          }
+          break;
         default:
           break;
       }
@@ -376,6 +385,18 @@ class DiscordBotService {
             await handleInteraction(interaction);
           } catch (e) {
             console.error('Lỗi handling bacao interaction:', e);
+          }
+      }
+    });
+
+    // Xì Dách interactions
+    this.client.on(Events.InteractionCreate, async (interaction: Interaction) => {
+      if (interaction.isButton() && interaction.customId.startsWith('xidach_')) {
+          try {
+            const { handleInteraction } = await import('./slashCommands/xidach.js');
+            await handleInteraction(interaction);
+          } catch (e) {
+            console.error('Lỗi handling xidach interaction:', e);
           }
       }
     });

@@ -109,6 +109,20 @@ export class GameWallet {
     }
 
     /**
+     * Hoàn tiền (không track vào statistics)
+     */
+    async refundBet(userId: string, guildId: string, amount: number) {
+        const odId = `${userId}-${guildId}`;
+        return await this.model.update({
+            where: { odId },
+            data: {
+                coins: { increment: amount }
+                // Không update totalWon/totalLost vì đây chỉ là hoàn lại tiền cược
+            }
+        });
+    }
+
+    /**
      * Lấy top 10 người chơi giàu nhất trong guild
      */
     async getLeaderboard(guildId: string, limit: number = 10) {
