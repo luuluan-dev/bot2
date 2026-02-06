@@ -53,10 +53,10 @@ function getWaitingButtons(game: BaCao.BaCaoGame): ActionRowBuilder<ButtonBuilde
     return new ActionRowBuilder<ButtonBuilder>().addComponents(joinBtn, readyBtn, leaveBtn, startBtn);
 }
 
-function getPlayingButtons(game: BaCao.BaCaoGame, playerId: string): ActionRowBuilder<ButtonBuilder> {
-    const player = game.players.find(p => p.id === playerId);
+function getPlayingButtons(game: BaCao.BaCaoGame, _playerId?: string): ActionRowBuilder<ButtonBuilder>[] {
+    // Buttons luôn enabled - handler sẽ check quyền khi click
     
-    // Nút Xem Bài luôn hiện
+    // Nút Xem Bài
     const handBtn = new ButtonBuilder()
         .setCustomId('bacao_hand')
         .setLabel('Xem Bài')
@@ -67,28 +67,52 @@ function getPlayingButtons(game: BaCao.BaCaoGame, playerId: string): ActionRowBu
     const callBtn = new ButtonBuilder()
         .setCustomId('bacao_call')
         .setLabel('Theo')
-        .setStyle(ButtonStyle.Success)
-        .setDisabled(!!player?.hasFolded || !!player?.isRevealed);
+        .setStyle(ButtonStyle.Success);
 
     const raiseBtn = new ButtonBuilder()
         .setCustomId('bacao_raise_modal')
         .setLabel('Tố')
-        .setStyle(ButtonStyle.Primary)
-        .setDisabled(!!player?.hasFolded || !!player?.isRevealed);
+        .setStyle(ButtonStyle.Primary);
+        
+    const allInBtn = new ButtonBuilder()
+        .setCustomId('bacao_allin')
+        .setLabel('🔥 All-in')
+        .setStyle(ButtonStyle.Danger);
 
     const foldBtn = new ButtonBuilder()
         .setCustomId('bacao_fold')
         .setLabel('Bỏ')
-        .setStyle(ButtonStyle.Danger)
-        .setDisabled(!!player?.hasFolded || !!player?.isRevealed);
+        .setStyle(ButtonStyle.Danger);
         
     const revealBtn = new ButtonBuilder()
         .setCustomId('bacao_reveal')
         .setLabel('Lật Bài')
-        .setStyle(ButtonStyle.Success)
-        .setDisabled(!!player?.hasFolded || (!player?.hasCalledRaise && !!game.raiseById));
+        .setStyle(ButtonStyle.Success);
 
-    return new ActionRowBuilder<ButtonBuilder>().addComponents(handBtn, callBtn, raiseBtn, foldBtn, revealBtn);
+    // Row 1: Hand, Call, Raise, All-in, Fold
+    const row1 = new ActionRowBuilder<ButtonBuilder>().addComponents(handBtn, callBtn, raiseBtn, allInBtn, foldBtn);
+    
+    // Row 2: Reveal (khi cần thiết hoặc luôn hiện)
+    const row2 = new ActionRowBuilder<ButtonBuilder>().addComponents(revealBtn);
+
+    return [row1, row2];
+}
+
+// Nút khi game kết thúc
+function getFinishedButtons(): ActionRowBuilder<ButtonBuilder> {
+    const restartBtn = new ButtonBuilder()
+        .setCustomId('bacao_restart')
+        .setLabel('Chơi Lại')
+        .setStyle(ButtonStyle.Success)
+        .setEmoji('🔄');
+
+    const endBtn = new ButtonBuilder()
+        .setCustomId('bacao_end')
+        .setLabel('Đóng Phòng')
+        .setStyle(ButtonStyle.Danger)
+        .setEmoji('🚪');
+
+    return new ActionRowBuilder<ButtonBuilder>().addComponents(restartBtn, endBtn);
 }
 
 // Định nghĩa slash command
@@ -350,7 +374,11 @@ async function handleJoin(interaction: RepliableInteraction, guildId: string, ch
         .setColor(0x00FF00)
         .setTimestamp();
     
-    await interaction.reply({ embeds: [embed], components: [getWaitingButtons(game)] });
+    if (interaction.isButton()) {
+        await (interaction as any).update({ embeds: [embed], components: [getWaitingButtons(game)] });
+    } else {
+        await interaction.reply({ embeds: [embed], components: [getWaitingButtons(game)] });
+    }
 }
 
 async function handleLeave(interaction: RepliableInteraction, guildId: string, channelId: string, userId: string) {
@@ -358,14 +386,22 @@ async function handleLeave(interaction: RepliableInteraction, guildId: string, c
     
     if (game === null) {
         const embed = createEmbed('🚪 Phòng Đã Đóng', 'Chủ phòng đã rời đi và phòng đã được đóng.', 0xFFA500);
-        await interaction.reply({ embeds: [embed], components: [] });
+        if (interaction.isButton()) {
+            await (interaction as any).update({ embeds: [embed], components: [] });
+        } else {
+            await interaction.reply({ embeds: [embed], components: [] });
+        }
     } else {
         const embed = createEmbed(
             '👋 Rời Phòng',
             `Bạn đã rời khỏi phòng.\n\n${BaCao.renderWaitingRoom(game)}`,
             0xFFA500
         );
-        await interaction.reply({ embeds: [embed], components: [getWaitingButtons(game)] });
+        if (interaction.isButton()) {
+            await (interaction as any).update({ embeds: [embed], components: [getWaitingButtons(game)] });
+        } else {
+            await interaction.reply({ embeds: [embed], components: [getWaitingButtons(game)] });
+        }
     }
 }
 
@@ -380,7 +416,11 @@ async function handleReady(interaction: RepliableInteraction, guildId: string, c
         player?.isReady ? 0x00FF00 : 0xFFFF00
     );
     
-    await interaction.reply({ embeds: [embed], components: [getWaitingButtons(game)] });
+    if (interaction.isButton()) {
+        await (interaction as any).update({ embeds: [embed], components: [getWaitingButtons(game)] });
+    } else {
+        await interaction.reply({ embeds: [embed], components: [getWaitingButtons(game)] });
+    }
 }
 
 async function handleStart(interaction: RepliableInteraction, guildId: string, channelId: string, userId: string) {
@@ -419,8 +459,12 @@ async function handleStart(interaction: RepliableInteraction, guildId: string, c
         .setColor(0xFF6B6B)
         .setFooter({ text: `💰 Xu của bạn: ${myCoins.toLocaleString()} xu` })
         .setTimestamp();
-    
-    await interaction.reply({ embeds: [embed], components: [getPlayingButtons(game, userId)] });
+        const components = getPlayingButtons(game, userId);
+        if (interaction.isButton() || interaction.isModalSubmit()) {
+            await (interaction as any).update({ embeds: [embed], components });
+        } else {
+            await interaction.reply({ embeds: [embed], components });
+        }
     
     // Gửi tin nhắn riêng cho mỗi người chơi với bài của họ
     for (const player of game.players) {
@@ -442,6 +486,29 @@ async function handleStart(interaction: RepliableInteraction, guildId: string, c
 }
 
 async function handleReveal(interaction: RepliableInteraction, guildId: string, channelId: string, userId: string, userName: string) {
+    const existingGame = BaCao.getGame(guildId, channelId);
+    if (!existingGame) {
+        throw new Error('Không tìm thấy phòng chơi!');
+    }
+    
+    const existingPlayer = existingGame.players.find(p => p.id === userId);
+    if (!existingPlayer) {
+        throw new Error('Bạn không ở trong phòng này!');
+    }
+    
+    if (existingPlayer.hasFolded) {
+        throw new Error('Bạn đã bỏ bài rồi!');
+    }
+    
+    if (existingPlayer.isRevealed) {
+        throw new Error('Bạn đã lật bài rồi!');
+    }
+    
+    // Kiểm tra đã call chưa (nếu có raise)
+    if (existingGame.raiseById && !existingPlayer.hasCalledRaise) {
+        throw new Error('Bạn cần theo cược (Call) trước khi lật bài!');
+    }
+    
     const game = BaCao.revealHand(guildId, channelId, userId);
     const player = game.players.find(p => p.id === userId);
     
@@ -512,7 +579,7 @@ async function handleReveal(interaction: RepliableInteraction, guildId: string, 
             .setFooter({ text: `💰 Xu của người thắng: ${winnerCoins.toLocaleString()} xu` })
             .setTimestamp();
         
-        await interaction.reply({ embeds: [resultEmbed], components: [] });
+        await interaction.reply({ embeds: [resultEmbed], components: [getFinishedButtons()] });
     } else {
         // Vẫn còn người chưa lật
         // Lấy số xu còn lại của người gọi lệnh
@@ -529,7 +596,12 @@ async function handleReveal(interaction: RepliableInteraction, guildId: string, 
             .setFooter({ text: `💰 Xu của bạn: ${myCoins.toLocaleString()} xu` })
             .setTimestamp();
         
-        await interaction.reply({ embeds: [embed], components: [getPlayingButtons(game, userId)] });
+        const components = getPlayingButtons(game, userId);
+        if (interaction.isButton() || interaction.isModalSubmit()) {
+            await (interaction as any).update({ embeds: [embed], components });
+        } else {
+            await interaction.reply({ embeds: [embed], components });
+        }
     }
 }
 
@@ -590,7 +662,7 @@ async function handleStatus(interaction: RepliableInteraction, guildId: string, 
             .setColor(0xFF6B6B)
             .setFooter({ text: `💰 Xu của bạn: ${myCoins.toLocaleString()} xu` })
             .setTimestamp();
-        components = [getPlayingButtons(game, userId)];
+        components = getPlayingButtons(game, userId);
     } else {
         embed = new EmbedBuilder()
             .setTitle('🏆 Kết Quả Ván Chơi')
@@ -616,7 +688,11 @@ async function handleEnd(interaction: RepliableInteraction, guildId: string, cha
         0xFF0000
     );
     
-    await interaction.reply({ embeds: [embed], components: [] });
+    if (interaction.isButton()) {
+        await (interaction as any).update({ embeds: [embed], components: [] });
+    } else {
+        await interaction.reply({ embeds: [embed], components: [] });
+    }
 }
 
 async function handleRestart(interaction: RepliableInteraction, guildId: string, channelId: string, userId: string) {
@@ -630,7 +706,11 @@ async function handleRestart(interaction: RepliableInteraction, guildId: string,
         .setColor(0x00FF00)
         .setTimestamp();
     
-    await interaction.reply({ embeds: [embed], components: [getWaitingButtons(game)] });
+    if (interaction.isButton()) {
+        await (interaction as any).update({ embeds: [embed], components: [getWaitingButtons(game)] });
+    } else {
+        await interaction.reply({ embeds: [embed], components: [getWaitingButtons(game)] });
+    }
 }
 
 async function handleRules(interaction: ChatInputCommandInteraction) {
@@ -822,6 +902,14 @@ async function executeRaise(interaction: RepliableInteraction, guildId: string, 
         throw new Error('Bạn không ở trong phòng này!');
     }
     
+    if (player.hasFolded) {
+        throw new Error('Bạn đã bỏ bài rồi!');
+    }
+    
+    if (player.isRevealed) {
+        throw new Error('Bạn đã lật bài rồi!');
+    }
+    
     // Tính số xu cần thêm
     const additionalNeeded = raiseAmount - player.currentBet;
     
@@ -858,7 +946,12 @@ async function executeRaise(interaction: RepliableInteraction, guildId: string, 
         .setFooter({ text: `💰 Xu còn lại của bạn: ${myCoins.toLocaleString()} xu` })
         .setTimestamp();
     
-    await interaction.reply({ embeds: [embed], components: [getPlayingButtons(updatedGame, userId)] });
+    const components = getPlayingButtons(updatedGame, userId);
+    if (interaction.isButton() || interaction.isModalSubmit()) {
+        await (interaction as any).update({ embeds: [embed], components });
+    } else {
+        await interaction.reply({ embeds: [embed], components });
+    }
 }
 
 async function handleRaise(interaction: ChatInputCommandInteraction, guildId: string, channelId: string, userId: string, userName: string) {
@@ -876,6 +969,14 @@ async function handleCall(interaction: RepliableInteraction, guildId: string, ch
     const player = game.players.find(p => p.id === userId);
     if (!player) {
         throw new Error('Bạn không ở trong phòng này!');
+    }
+    
+    if (player.hasFolded) {
+        throw new Error('Bạn đã bỏ bài rồi!');
+    }
+    
+    if (player.isRevealed) {
+        throw new Error('Bạn đã lật bài rồi!');
     }
     
     // Tính số xu cần thêm
@@ -915,10 +1016,29 @@ async function handleCall(interaction: RepliableInteraction, guildId: string, ch
         .setFooter({ text: `💰 Xu còn lại của bạn: ${myCoins.toLocaleString()} xu` })
         .setTimestamp();
     
-    await interaction.reply({ embeds: [embed], components: [getPlayingButtons(updatedGame, userId)] });
+    const components = getPlayingButtons(updatedGame, userId);
+    if (interaction.isButton() || interaction.isModalSubmit()) {
+        await (interaction as any).update({ embeds: [embed], components });
+    } else {
+        await interaction.reply({ embeds: [embed], components });
+    }
 }
 
 async function handleFold(interaction: RepliableInteraction, guildId: string, channelId: string, userId: string, userName: string) {
+    const existingGame = BaCao.getGame(guildId, channelId);
+    if (!existingGame) {
+        throw new Error('Không tìm thấy phòng chơi!');
+    }
+    
+    const player = existingGame.players.find(p => p.id === userId);
+    if (!player) {
+        throw new Error('Bạn không ở trong phòng này!');
+    }
+    
+    if (player.hasFolded) {
+        throw new Error('Bạn đã bỏ bài rồi!');
+    }
+    
     const game = BaCao.foldGame(guildId, channelId, userId);
     
     // Kiểm tra game đã kết thúc chưa (chỉ còn 1 người)
@@ -956,7 +1076,11 @@ async function handleFold(interaction: RepliableInteraction, guildId: string, ch
             .setFooter({ text: `💰 Xu của người thắng: ${winnerCoins.toLocaleString()} xu` })
             .setTimestamp();
         
-        await interaction.reply({ embeds: [embed] });
+        if (interaction.isButton()) {
+            await (interaction as any).update({ embeds: [embed], components: [getFinishedButtons()] });
+        } else {
+            await interaction.reply({ embeds: [embed], components: [getFinishedButtons()] });
+        }
     } else {
         const activePlayers = game.players.filter(p => !p.hasFolded);
         
@@ -975,8 +1099,45 @@ async function handleFold(interaction: RepliableInteraction, guildId: string, ch
             .setFooter({ text: `💰 Xu còn lại của bạn: ${myCoins.toLocaleString()} xu` })
             .setTimestamp();
         
-        await interaction.reply({ embeds: [embed], components: [getPlayingButtons(game, userId)] });
+        const components = getPlayingButtons(game, userId);
+        if (interaction.isButton() || interaction.isModalSubmit()) {
+            await (interaction as any).update({ embeds: [embed], components });
+        } else {
+            await interaction.reply({ embeds: [embed], components });
+        }
     }
+}
+
+async function handleAllIn(interaction: RepliableInteraction, guildId: string, channelId: string, userId: string, userName: string) {
+    const game = BaCao.getGame(guildId, channelId);
+    if (!game) throw new Error('Không tìm thấy phòng chơi!');
+    
+    const player = game.players.find(p => p.id === userId);
+    if (!player) throw new Error('Bạn không ở trong phòng này!');
+    
+    if (player.hasFolded) {
+        throw new Error('Bạn đã bỏ bài rồi!');
+    }
+    
+    if (player.isRevealed) {
+        throw new Error('Bạn đã lật bài rồi!');
+    }
+    
+    const wallet = await walletModel.get(userId, guildId);
+    const coins = wallet?.coins || 0;
+    
+    if (coins <= 0) {
+        throw new Error('Bạn đã hết sạch xu để All-in!');
+    }
+    
+    // Raise Amount = Current Bet + Wallet Coins (Tất tay)
+    const raiseAmount = player.currentBet + coins;
+    
+    if (raiseAmount <= game.currentRaise) {
+         throw new Error(`Bạn không đủ xu để tố cao hơn mức cược hiện tại (${game.currentRaise.toLocaleString()} xu)!`);
+    }
+
+    await executeRaise(interaction, guildId, channelId, userId, userName, raiseAmount);
 }
 
 export async function handleInteraction(interaction: Interaction) {
@@ -989,6 +1150,26 @@ export async function handleInteraction(interaction: Interaction) {
     const userName = interaction.user.displayName || interaction.user.username; 
 
     try {
+        // Kiểm tra phòng chơi tồn tại (trừ một số action đặc biệt)
+        if (interaction.isButton() && interaction.customId !== 'bacao_raise_modal') {
+            const game = BaCao.getGame(guildId, channelId);
+            if (!game) {
+                const embed = createEmbed(
+                    '⚠️ Phòng Không Tồn Tại',
+                    'Phòng chơi đã hết hạn hoặc bot vừa restart.\n\nDùng `/bacao create` để tạo phòng mới!',
+                    0xFFA500
+                );
+                await (interaction as any).update({ embeds: [embed], components: [] });
+                return;
+            }
+            
+            // Kiểm tra game đã kết thúc - chặn các playing actions
+            const playingActions = ['bacao_call', 'bacao_fold', 'bacao_reveal', 'bacao_allin', 'bacao_raise_modal'];
+            if (game.status === 'finished' && playingActions.includes(interaction.customId)) {
+                throw new Error('Game đã kết thúc! Bấm "Chơi Lại" để bắt đầu ván mới.');
+            }
+        }
+
         if (interaction.isButton()) {
             switch (interaction.customId) {
                 case 'bacao_join':
@@ -1012,6 +1193,9 @@ export async function handleInteraction(interaction: Interaction) {
                 case 'bacao_fold':
                     await handleFold(interaction as RepliableInteraction, guildId, channelId, userId, userName);
                     break;
+                case 'bacao_allin':
+                    await handleAllIn(interaction as RepliableInteraction, guildId, channelId, userId, userName);
+                    break;
                 case 'bacao_reveal':
                     await handleReveal(interaction as RepliableInteraction, guildId, channelId, userId, userName);
                     break;
@@ -1027,6 +1211,12 @@ export async function handleInteraction(interaction: Interaction) {
                         .setRequired(true);
                     modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(amountInput));
                     await interaction.showModal(modal);
+                    break;
+                case 'bacao_restart':
+                    await handleRestart(interaction as RepliableInteraction, guildId, channelId, userId);
+                    break;
+                case 'bacao_end':
+                    await handleEnd(interaction as RepliableInteraction, guildId, channelId, userId);
                     break;
             }
         } else if (interaction.isModalSubmit()) {
@@ -1045,12 +1235,18 @@ export async function handleInteraction(interaction: Interaction) {
     } catch (error: any) {
          console.error('Lỗi interaction bacao:', error.message || error);
          const embed = createEmbed('❌ Lỗi', error.message || 'Có lỗi xảy ra!', 0xFF0000);
-         if (interaction.isRepliable()) {
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ embeds: [embed], ephemeral: true });
-            } else {
-                await interaction.reply({ embeds: [embed], ephemeral: true });
-            }
+         try {
+             // Luôn dùng followUp vì interaction có thể đã được update
+             await (interaction as any).followUp({ embeds: [embed], ephemeral: true });
+         } catch {
+             // Nếu followUp fail, thử reply
+             try {
+                 if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
+                     await interaction.reply({ embeds: [embed], ephemeral: true });
+                 }
+             } catch {
+                 // Ignore - interaction đã expired hoặc đã được xử lý
+             }
          }
     }
 }
