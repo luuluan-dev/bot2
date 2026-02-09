@@ -912,6 +912,9 @@ export function restartGame(guildId: string, channelId: string, userId: string):
         game.dealerIndex = (game.dealerIndex + 1) % game.players.length;
     }
     
+    // QUAN TRỌNG: Reset status về 'waiting' để startGame không throw error
+    game.status = 'waiting';
+    
     return startGame(guildId, channelId, userId);
 }
 
