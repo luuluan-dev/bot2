@@ -685,10 +685,18 @@ async function handleEnd(interaction: RepliableInteraction, guildId: string, cha
 async function handleRestart(interaction: RepliableInteraction, guildId: string, channelId: string, userId: string) {
     const game = XiDach.restartGame(guildId, channelId, userId);
     
+    // Game đã được startGame bên trong restartGame, nên đang ở trạng thái playing
+    const currentPlayer = XiDach.getCurrentPlayer(game);
+    let description = XiDach.renderTable(game);
+    if (currentPlayer) {
+        description += `\n👉 **Lượt của ${currentPlayer.name}**`;
+    }
+    description += `\n\n💡 *Dùng nút "Xem Bài" để kiểm tra bài của bạn!*`;
+    
     const embed = new EmbedBuilder()
-        .setTitle('🔄 Ván Mới')
-        .setDescription(`Chủ phòng đã bắt đầu ván mới!\n\n${XiDach.renderWaitingRoom(game)}`)
-        .setColor(0x00FF00)
+        .setTitle('🔄 Ván Mới - Đang Chơi!')
+        .setDescription(description)
+        .setColor(0x2ECC71)
         .setTimestamp();
     
     if (interaction.isButton()) {
@@ -696,20 +704,20 @@ async function handleRestart(interaction: RepliableInteraction, guildId: string,
             // Update tin nhắn kết quả cũ: Xóa hết nút để tránh bấm lại, giữ nguyên nội dung
             await (interaction as any).update({ components: [] });
             
-            // Gửi tin nhắn mới cho ván tiếp theo
+            // Gửi tin nhắn mới cho ván tiếp theo với UI playing
             await (interaction as any).followUp({ 
                 embeds: [embed], 
-                components: [getWaitingButtons(game)] 
+                components: getPlayingButtons(game) 
             });
         } catch (e) {
             // Fallback nếu lỗi
             await interaction.reply({ 
                 embeds: [embed], 
-                components: [getWaitingButtons(game)] 
+                components: getPlayingButtons(game) 
             });
         }
     } else {
-        await interaction.reply({ embeds: [embed], components: [getWaitingButtons(game)] });
+        await interaction.reply({ embeds: [embed], components: getPlayingButtons(game) });
     }
 }
 
