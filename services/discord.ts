@@ -23,6 +23,7 @@ import * as randomChoice from './slashCommands/randomchoice.js';
 import * as gRandomChoice from './slashCommands/grandomchoice.js';
 import * as bacao from './slashCommands/bacao.js';
 import * as xidach from './slashCommands/xidach.js';
+import * as otp from './slashCommands/otp.js';
 import { agenda } from '../utils/agenda.js';
 import { scheduleDailyJobs } from '../src/queues/agendaQueue.js';
 import { Setting } from '../models/setting.js';
@@ -52,7 +53,8 @@ const stashCommandMap = {
   randomchoice: randomChoice,
   grandomchoice: gRandomChoice,
   bacao: bacao,
-  xidach: xidach
+  xidach: xidach,
+  otp: otp
 }
 
 class ConfigService {
@@ -345,6 +347,13 @@ class DiscordBotService {
             console.error('Lỗi xidach:', error.message || error);
           }
           break;
+        case 'otp':
+          try {
+            await stashCommandMap['otp'].execute(interaction);
+          } catch (error: any) {
+            console.error('Lỗi otp:', error.message || error);
+          }
+          break;
         default:
           break;
       }
@@ -375,6 +384,9 @@ class DiscordBotService {
 
     this.client.on(Events.InteractionCreate, async (interaction) => {
       if (interaction.isAutocomplete()) {
+        if (interaction.commandName === 'otp') {
+          try { await otp.autocomplete(interaction); } catch (e) { console.error('OTP autocomplete error:', e); }
+        }
       }
     });
 

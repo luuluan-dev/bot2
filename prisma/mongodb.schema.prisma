@@ -96,6 +96,13 @@ model bookmarks {
   @@map("bookmarks")
 }
 
+model otp_secrets {
+  id    String @id @default(auto()) @map("_id") @db.ObjectId
+  name  String @unique
+  value String
+  @@map("otp_secrets")
+}
+
 // ========== CHESS GAME ==========
 model chess_games {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
