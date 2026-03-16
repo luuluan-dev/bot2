@@ -23,7 +23,7 @@ export default {
         const channel = message.channel as TextChannel;
 
         try {
-            const code = await generate({ secret });
+            const code = await generate({ secret: secret.replace(/\s/g, '').toUpperCase() });
             const secondsRemaining = 30 - (Math.floor(Date.now() / 1000) % 30);
 
             const reply = await channel.send(
