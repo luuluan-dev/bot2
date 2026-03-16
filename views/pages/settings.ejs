@@ -1,165 +1,100 @@
 <h1 class="text-2xl font-semibold text-gray-700 mb-4">Cài đặt</h1>
-            <form class="space-y-4 mb-8">
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-gray-600" for="channel_spam_bot">AI Channel ID</label>
-                        <input type="text" id="channel_spam_bot" name="channel_spam_bot" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="saveSetting(event)" value="<%=settings.channel_spam_bot || '' %>" />
-                    </div>
-                    <div>
-                        <label class="block text-gray-600" for="electric_target_id">Chích điện người này</label>
-                        <input type="text" id="electric_target_id" name="electric_target_id" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="<%=settings.electric_target_id || '' %>" onchange="saveSetting(event)">
-                    </div>
-                    <div>
-                        <label class="block text-gray-600" for="ai_model">Gemini Model</label>
-                        <input type="text" id="ai_model" name="ai_model" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="<%=settings.ai_model || '' %>" onchange="saveSetting(event)">
-                    </div>
-                </div>
-            </form>
+<form class="space-y-4">
+    <div class="grid grid-cols-2 gap-4">
+        <div>
+            <label class="block text-gray-600" for="channel_spam_bot">AI Channel ID</label>
+            <input type="text" id="channel_spam_bot" name="channel_spam_bot" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="saveSetting(event)" value="<%=settings.channel_spam_bot || '' %>" />
+        </div>
+        <div>
+            <label class="block text-gray-600" for="electric_target_id">Chích điện người này</label>
+            <input type="text" id="electric_target_id" name="electric_target_id" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="<%=settings.electric_target_id || '' %>" onchange="saveSetting(event)">
+        </div>
+        <div>
+            <label class="block text-gray-600" for="ai_model">Gemini Model</label>
+            <input type="text" id="ai_model" name="ai_model" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="<%=settings.ai_model || '' %>" onchange="saveSetting(event)">
+        </div>
+    </div>
+</form>
 
-            <!-- OTP Secrets -->
-            <div class="mb-2 flex items-center justify-between">
-                <h2 class="text-xl font-semibold text-gray-700">🔐 OTP Secrets</h2>
-            </div>
-            <div class="bg-white border border-gray-200 rounded-lg overflow-hidden mb-4">
-                <table class="w-full text-sm">
-                    <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
-                        <tr>
-                            <th class="px-4 py-3 text-left">Name</th>
-                            <th class="px-4 py-3 text-left">Secret</th>
-                            <th class="px-4 py-3 text-right">Hành động</th>
-                        </tr>
-                    </thead>
-                    <tbody id="otp-table-body">
-                        <% if (otpSecrets.length === 0) { %>
-                        <tr id="otp-empty-row">
-                            <td colspan="3" class="px-4 py-4 text-center text-gray-400">Chưa có OTP secret nào</td>
-                        </tr>
-                        <% } %>
-                        <% otpSecrets.forEach(function(otp) { %>
-                        <tr class="border-t border-gray-100" id="otp-row-<%=otp.id%>">
-                            <td class="px-4 py-3 font-medium text-gray-700"><%=otp.name%></td>
-                            <td class="px-4 py-3 font-mono">
-                                <span id="otp-val-<%=otp.id%>" data-secret="<%=otp.value%>" class="text-gray-400">••••••••••••••••</span>
-                            </td>
-                            <td class="px-4 py-3 text-right flex items-center justify-end gap-1">
-                                <button onclick="toggleSecret('<%=otp.id%>')" id="otp-eye-<%=otp.id%>" title="Hiện/Ẩn" class="text-gray-400 hover:text-gray-600 text-xs px-2 py-1 rounded hover:bg-gray-100 transition">👁</button>
-                                <button onclick="getOtp('<%=otp.id%>')" title="Lấy mã OTP" class="text-blue-400 hover:text-blue-600 text-xs px-2 py-1 rounded hover:bg-blue-50 transition font-medium">OTP</button>
-                                <button onclick="deleteOtp('<%=otp.id%>')" class="text-red-400 hover:text-red-600 text-xs px-2 py-1 rounded hover:bg-red-50 transition">Xóa</button>
-                            </td>
-                        </tr>
-                        <% }) %>
-                    </tbody>
-                </table>
-            </div>
+<!-- Public Pages -->
+<div class="mt-8">
+    <h2 class="text-lg font-semibold text-gray-700 mb-3">Trang công khai (không cần đăng nhập)</h2>
+    <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+                <tr>
+                    <th class="px-4 py-3 text-left">Trang</th>
+                    <th class="px-4 py-3 text-left">Công khai</th>
+                    <th class="px-4 py-3 text-left">Passkey (để trống = không cần)</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                <% configurablePages.forEach(function(page) { %>
+                <tr>
+                    <td class="px-4 py-3 font-medium text-gray-700"><%= page.label %></td>
+                    <td class="px-4 py-3">
+                        <input type="checkbox"
+                            id="public-<%= page.key %>"
+                            value="<%= page.key %>"
+                            onchange="savePublicPages()"
+                            <%= (settings.public_pages || '').split(',').map(s => s.trim()).includes(page.key) ? 'checked' : '' %>
+                            class="w-4 h-4 accent-blue-500">
+                    </td>
+                    <td class="px-4 py-3">
+                        <input type="password"
+                            id="passkey-<%= page.key %>"
+                            placeholder="Passkey..."
+                            value="<%= settings['passkey_' + page.key] || '' %>"
+                            onchange="savePasskey('<%= page.key %>', this.value)"
+                            class="p-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-48">
+                    </td>
+                </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+</div>
 
-            <!-- Add OTP Form -->
-            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <h3 class="text-sm font-semibold text-gray-600 mb-3">Thêm OTP Secret</h3>
-                <div class="flex gap-3 items-end">
-                    <div class="flex-1">
-                        <label class="block text-xs text-gray-500 mb-1">Name (vd: gmail, github)</label>
-                        <input type="text" id="otp-new-name" placeholder="gmail" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    </div>
-                    <div class="flex-1">
-                        <label class="block text-xs text-gray-500 mb-1">Secret Key (Base32)</label>
-                        <input type="password" id="otp-new-value" placeholder="JBSW Y3DP EHPK 3PXP..." class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    </div>
-                    <button onclick="addOtp()" class="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition whitespace-nowrap">Thêm</button>
-                </div>
-            </div>
+<%- contentFor('scripts') %>
+<script>
+    async function savePasskey(pageKey, value) {
+        const res = await fetch('/settings/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: `passkey_${pageKey}`, value })
+        });
+        if (res.ok) showToast('Đã lưu passkey');
+        else showToast('Có lỗi xảy ra');
+    }
 
-            <%- contentFor('scripts') %>
-            <script>
-                async function saveSetting(event) {
-                    const saved = await fetch('/settings/save', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            key: event.target.name,
-                            value: event.target.value
-                        })
-                    });
-                    if (saved.ok) {
-                        showToast('Cài đặt đã được lưu');
-                    } else {
-                        showToast('Có lỗi xảy ra, vui lòng thử lại sau');
-                    }
-                }
+    async function savePublicPages() {
+        const checked = Array.from(document.querySelectorAll('input[id^="public-"]:checked'))
+            .map(el => el.value).join(',');
+        const res = await fetch('/settings/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: 'public_pages', value: checked })
+        });
+        if (res.ok) {
+            showToast('Đã cập nhật trang công khai');
+        } else {
+            showToast('Có lỗi xảy ra');
+        }
+    }
 
-                async function getOtp(id) {
-                    const res = await fetch(`/settings/otp/${id}/generate`);
-                    const data = await res.json();
-                    if (res.ok) {
-                        showToast(`🔐 ${data.code}  ⏱ ${data.secondsRemaining}s`, 5000);
-                    } else {
-                        showToast(data.message || 'Lỗi khi lấy OTP');
-                    }
-                }
-
-                function toggleSecret(id) {
-                    const span = document.getElementById(`otp-val-${id}`);
-                    const btn = document.getElementById(`otp-eye-${id}`);
-                    if (span.textContent === '••••••••••••••••') {
-                        span.textContent = span.dataset.secret;
-                        span.classList.replace('text-gray-400', 'text-gray-700');
-                        btn.textContent = '🙈';
-                    } else {
-                        span.textContent = '••••••••••••••••';
-                        span.classList.replace('text-gray-700', 'text-gray-400');
-                        btn.textContent = '👁';
-                    }
-                }
-
-                async function addOtp() {
-                    const name = document.getElementById('otp-new-name').value.trim();
-                    const value = document.getElementById('otp-new-value').value.trim();
-                    if (!name || !value) {
-                        showToast('Vui lòng nhập đầy đủ Name và Secret');
-                        return;
-                    }
-                    const res = await fetch('/settings/otp/save', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ name, value })
-                    });
-                    const data = await res.json();
-                    if (res.ok) {
-                        showToast(data.message || 'Đã lưu');
-                        // Thêm row vào table
-                        const id = Date.now(); // placeholder, reload để lấy id thật
-                        const tbody = document.getElementById('otp-table-body');
-                        const emptyRow = document.getElementById('otp-empty-row');
-                        if (emptyRow) emptyRow.remove();
-                        const newId = data.id;
-                        tbody.insertAdjacentHTML('beforeend', `
-                            <tr class="border-t border-gray-100" id="otp-row-${newId}">
-                                <td class="px-4 py-3 font-medium text-gray-700">${name}</td>
-                                <td class="px-4 py-3 font-mono">
-                                    <span id="otp-val-${newId}" data-secret="${value}" class="text-gray-400">••••••••••••••••</span>
-                                </td>
-                                <td class="px-4 py-3 text-right flex items-center justify-end gap-1">
-                                    <button onclick="toggleSecret('${newId}')" id="otp-eye-${newId}" title="Hiện/Ẩn" class="text-gray-400 hover:text-gray-600 text-xs px-2 py-1 rounded hover:bg-gray-100 transition">👁</button>
-                                    <button onclick="getOtp('${newId}')" title="Lấy mã OTP" class="text-blue-400 hover:text-blue-600 text-xs px-2 py-1 rounded hover:bg-blue-50 transition font-medium">OTP</button>
-                                    <button onclick="deleteOtp('${newId}')" class="text-red-400 hover:text-red-600 text-xs px-2 py-1 rounded hover:bg-red-50 transition">Xóa</button>
-                                </td>
-                            </tr>
-                        `);
-                        document.getElementById('otp-new-name').value = '';
-                        document.getElementById('otp-new-value').value = '';
-                    } else {
-                        showToast(data.message || 'Có lỗi xảy ra');
-                    }
-                }
-
-                async function deleteOtp(id) {
-                    if (!confirm('Xóa OTP secret này?')) return;
-                    const res = await fetch(`/settings/otp/${id}`, { method: 'DELETE' });
-                    const data = await res.json();
-                    if (res.ok) {
-                        document.getElementById(`otp-row-${id}`)?.remove();
-                        showToast(data.message || 'Đã xóa');
-                    } else {
-                        showToast(data.message || 'Có lỗi xảy ra');
-                    }
-                }
-            </script>
+    async function saveSetting(event) {
+        const saved = await fetch('/settings/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                key: event.target.name,
+                value: event.target.value
+            })
+        });
+        if (saved.ok) {
+            showToast('Cài đặt đã được lưu');
+        } else {
+            showToast('Có lỗi xảy ra, vui lòng thử lại sau');
+        }
+    }
+</script>

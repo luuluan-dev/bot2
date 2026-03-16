@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { generate } from 'otplib';
 import { OtpSecret } from '../../models/otpSecret.js';
 
@@ -41,7 +41,18 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         const code = await generate({ secret: cleanSecret });
         const secondsRemaining = 30 - (Math.floor(Date.now() / 1000) % 30);
 
-        await interaction.reply({ content: `🔐 **[${name}] Mã OTP:** \`${code}\`\n⏱️ Hết hạn sau **${secondsRemaining}** giây`, ephemeral: true });
+        const embed = new EmbedBuilder()
+            .setColor(0x5865f2)
+            .setTitle('🔐 Mã OTP')
+            .addFields(
+                { name: 'Tên', value: `\`${name}\``, inline: true },
+                { name: 'Mã', value: `\`${code}\``, inline: true },
+                { name: 'Hết hạn sau', value: `**${secondsRemaining}** giây`, inline: true }
+            )
+            .setFooter({ text: `Yêu cầu bởi ${interaction.user.username}`, iconURL: interaction.user.displayAvatarURL() })
+            .setTimestamp();
+
+        await interaction.reply({ embeds: [embed] });
 
         setTimeout(async () => {
             try { await interaction.deleteReply(); } catch {}

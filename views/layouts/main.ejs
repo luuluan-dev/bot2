@@ -29,15 +29,30 @@
             </div>
         </div>
         <nav class="space-y-2 mt-4">
+            <% const isGuest = !currentUser || currentUser.role === 'GUEST'; %>
+            <% if (!isGuest) { %>
             <a href="/" class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-700 <% if(activePage === 'home') { %>bg-gray-700<% } %>">
                 <i class="ph ph-users"></i> Users
             </a>
             <a href="/settings" class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-700 <% if(activePage === 'settings') { %>bg-gray-700<% } %>">
                 <i class="ph ph-gear"></i> Settings
             </a>
+            <% } %>
+            <% if (!isGuest || publicPages.includes('dashboard')) { %>
+            <a href="/dashboard" class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-700 <% if(activePage === 'dashboard') { %>bg-gray-700<% } %>">
+                <i class="ph ph-house"></i> Dashboard
+            </a>
+            <% } %>
+            <% if (!isGuest || publicPages.includes('otp')) { %>
+            <a href="/otp" class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-700 <% if(activePage === 'otp') { %>bg-gray-700<% } %>">
+                <i class="ph ph-key"></i> OTP
+            </a>
+            <% } %>
+            <% if (!isGuest || publicPages.includes('features')) { %>
             <a href="/features" class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-700 <% if(activePage === 'feature') { %>bg-gray-700<% } %>">
                 <i class="ph ph-lightbulb"></i> Feature
             </a>
+            <% } %>
         </nav>
     </div>
 

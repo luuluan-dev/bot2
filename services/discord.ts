@@ -24,6 +24,7 @@ import * as gRandomChoice from './slashCommands/grandomchoice.js';
 import * as bacao from './slashCommands/bacao.js';
 import * as xidach from './slashCommands/xidach.js';
 import * as otp from './slashCommands/otp.js';
+import * as addotp from './slashCommands/addotp.js';
 import { agenda } from '../utils/agenda.js';
 import { scheduleDailyJobs } from '../src/queues/agendaQueue.js';
 import { Setting } from '../models/setting.js';
@@ -54,7 +55,8 @@ const stashCommandMap = {
   grandomchoice: gRandomChoice,
   bacao: bacao,
   xidach: xidach,
-  otp: otp
+  otp: otp,
+  addotp: addotp
 }
 
 class ConfigService {
@@ -352,6 +354,13 @@ class DiscordBotService {
             await stashCommandMap['otp'].execute(interaction);
           } catch (error: any) {
             console.error('Lỗi otp:', error.message || error);
+          }
+          break;
+        case 'addotp':
+          try {
+            await stashCommandMap['addotp'].execute(interaction);
+          } catch (error: any) {
+            console.error('Lỗi addotp:', error.message || error);
           }
           break;
         default:

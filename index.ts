@@ -13,6 +13,7 @@ import { config } from './config.js';
 import './utils/logger.js';
 import './services/notify.js';
 import { Setting } from './models/setting.js';
+import { getPublicPages, CONFIGURABLE_PAGES } from './utils/publicPages.js';
 
 dotenv.config();
 
@@ -70,8 +71,15 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     options.activePage = options.activePage || '';
     options.title = options.title || 'Dashboard';
     options.ROLE_HIERARCHY = ROLE_HIERARCHY;
+    options.configurablePages = CONFIGURABLE_PAGES;
     const boundRender = originalRender.bind(res);
-    boundRender(view, options);
+    getPublicPages().then(publicPages => {
+      options.publicPages = publicPages;
+      boundRender(view, options);
+    }).catch(() => {
+      options.publicPages = [];
+      boundRender(view, options);
+    });
   };
 
   next();

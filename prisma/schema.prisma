@@ -97,9 +97,11 @@ model bookmarks {
 }
 
 model otp_secrets {
-  id    String @id @default(auto()) @map("_id") @db.ObjectId
-  name  String @unique
-  value String
+  id         String  @id @default(auto()) @map("_id") @db.ObjectId
+  name       String  @unique
+  value      String
+  shareToken   String? @unique @map("share_token")
+  sharePasskey String? @map("share_passkey")
   @@map("otp_secrets")
 }
 

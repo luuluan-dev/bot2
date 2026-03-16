@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTP - <%= name %></title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gray-900 flex items-center justify-center">
+
+<% if (needPasskey) { %>
+    <!-- Passkey gate -->
+    <div class="bg-gray-800 rounded-xl shadow-lg p-8 w-80 text-center">
+        <p class="text-gray-400 text-xs mb-1 uppercase tracking-widest"><%= name %></p>
+        <h2 class="text-white font-bold text-lg mb-6">🔑 Nhập passkey</h2>
+        <input type="password" id="share-passkey" placeholder="Passkey..."
+            class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-center" />
+        <p id="pk-error" class="text-red-400 text-xs mb-3 hidden">Passkey không đúng</p>
+        <button onclick="unlockShare()" class="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition text-sm font-medium">Xác nhận</button>
+    </div>
+    <script>
+        document.getElementById('share-passkey').addEventListener('keydown', e => { if (e.key === 'Enter') unlockShare(); });
+        async function unlockShare() {
+            const passkey = document.getElementById('share-passkey').value;
+            const res = await fetch(`/otp/share/<%= shareToken %>/code`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ passkey })
+            });
+            if (res.status === 403) {
+                document.getElementById('pk-error').classList.remove('hidden');
+                return;
+            }
+            const data = await res.json();
+            document.querySelector('body').innerHTML = buildOtpUI('<%= name %>', data.code, data.secondsRemaining);
+            startCountdown('<%= shareToken %>', data.secondsRemaining, passkey);
+        }
+        function buildOtpUI(name, code, sec) {
+            return `<div class="text-center">
+                <p class="text-gray-400 text-sm mb-2 uppercase tracking-widest">${name}</p>
+                <div id="otp-code" class="text-7xl font-mono font-bold text-white tracking-widest mb-6">${code}</div>
+                <div class="flex items-center justify-center gap-3 mb-2">
+                    <div class="w-48 bg-gray-700 rounded-full h-2 overflow-hidden">
+                        <div id="progress-bar" class="h-2 bg-blue-500 rounded-full" style="width:${sec/30*100}%"></div>
+                    </div>
+                    <span id="timer" class="text-gray-400 text-sm font-mono">${sec}s</span>
+                </div>
+                <p class="text-gray-600 text-xs">Tự động làm mới khi hết hạn</p>
+            </div>`;
+        }
+    </script>
+
+<% } else { %>
+    <!-- Hiển thị OTP trực tiếp -->
+    <div class="text-center">
+        <p class="text-gray-400 text-sm mb-2 uppercase tracking-widest"><%= name %></p>
+        <div id="otp-code" class="text-7xl font-mono font-bold text-white tracking-widest mb-6"><%= code %></div>
+        <div class="flex items-center justify-center gap-3 mb-2">
+            <div class="w-48 bg-gray-700 rounded-full h-2 overflow-hidden">
+                <div id="progress-bar" class="h-2 bg-blue-500 rounded-full" style="width: <%= secondsRemaining / 30 * 100 %>%"></div>
+            </div>
+            <span id="timer" class="text-gray-400 text-sm font-mono"><%= secondsRemaining %>s</span>
+        </div>
+        <p class="text-gray-600 text-xs">Tự động làm mới khi hết hạn</p>
+    </div>
+    <script>
+        startCountdown('<%= shareToken %>', <%= secondsRemaining %>, null);
+    </script>
+<% } %>
+
+<script>
+    function secondsLeft() { return 30 - (Math.floor(Date.now() / 1000) % 30); }
+
+    function updateDisplay() {
+        const s = secondsLeft();
+        const t = document.getElementById('timer');
+        const p = document.getElementById('progress-bar');
+        if (t) t.textContent = s + 's';
+        if (p) p.style.width = (s / 30 * 100) + '%';
+    }
+
+    function startCountdown(token, initSec, passkey) {
+        setInterval(updateDisplay, 1000);
+        async function fetchAndSchedule() {
+            const res = await fetch(`/otp/share/${token}/code`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ passkey })
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            const el = document.getElementById('otp-code');
+            if (el) el.textContent = data.code;
+            setTimeout(fetchAndSchedule, secondsLeft() * 1000);
+        }
+        setTimeout(fetchAndSchedule, secondsLeft() * 1000);
+    }
+</script>
+</body>
+</html>

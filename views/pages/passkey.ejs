@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nhập Passkey</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gray-100 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-md p-8 w-full max-w-sm">
+        <h2 class="text-xl font-bold text-gray-700 mb-2 text-center">🔑 Passkey yêu cầu</h2>
+        <p class="text-gray-500 text-sm text-center mb-6">Trang <strong><%= pageName %></strong> yêu cầu passkey để truy cập.</p>
+        <% if (error) { %>
+        <p class="text-red-500 text-sm text-center mb-4">❌ Passkey không đúng</p>
+        <% } %>
+        <form method="POST" action="/passkey/verify">
+            <input type="hidden" name="page" value="<%= page %>">
+            <input type="hidden" name="redirect" value="<%= redirect %>">
+            <input type="password" name="passkey" placeholder="Nhập passkey..." autofocus
+                class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+            <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition text-sm font-medium">
+                Xác nhận
+            </button>
+        </form>
+    </div>
+</body>
+</html>
