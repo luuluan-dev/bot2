@@ -1,5 +1,8 @@
-import { totp } from 'otplib';
+import { TOTP } from 'otplib';
+import { TextChannel } from 'discord.js';
 import { Command, ExecuteParams } from './types.js';
+
+const totp = new TOTP();
 
 export default {
     name: 'otp',
@@ -18,11 +21,14 @@ export default {
             // Bỏ qua nếu không có quyền xoá
         }
 
+        if (!('send' in message.channel)) return;
+        const channel = message.channel as TextChannel;
+
         try {
-            const code = totp.generate(secret);
+            const code = await totp.generate({ secret });
             const secondsRemaining = 30 - (Math.floor(Date.now() / 1000) % 30);
 
-            const reply = await message.channel.send(
+            const reply = await channel.send(
                 `🔐 **Mã OTP:** \`${code}\`\n⏱️ Hết hạn sau **${secondsRemaining}** giây`
             );
 
@@ -30,7 +36,7 @@ export default {
                 reply.delete().catch(() => {});
             }, secondsRemaining * 1000);
         } catch (error: any) {
-            await message.channel.send(`❌ Lỗi khi tạo OTP: ${error.message}`);
+            await channel.send(`❌ Lỗi khi tạo OTP: ${error.message}`);
         }
     },
 } as Command;
