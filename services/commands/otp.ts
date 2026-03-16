@@ -1,8 +1,6 @@
-import { TOTP } from 'otplib';
+import { generate } from 'otplib';
 import { TextChannel } from 'discord.js';
 import { Command, ExecuteParams } from './types.js';
-
-const totp = new TOTP();
 
 export default {
     name: 'otp',
@@ -25,7 +23,7 @@ export default {
         const channel = message.channel as TextChannel;
 
         try {
-            const code = await totp.generate({ secret });
+            const code = await generate({ secret });
             const secondsRemaining = 30 - (Math.floor(Date.now() / 1000) % 30);
 
             const reply = await channel.send(
